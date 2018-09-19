@@ -104,3 +104,21 @@ func TestSingleTransitionCallbackError(t *testing.T) {
 	err := beGood.TransitionFrom("bad", yafsm.WithCallback(cb))
 	assert.Equal(t, err, cbErr)
 }
+
+func TestTransitionCallbackOverride(t *testing.T) {
+	id := 0
+	expected := 2
+
+	cb1 := func(tran yafsm.Transition, from, to yafsm.State) error {
+		id = 1
+		return nil
+	}
+	cb2 := func(tran yafsm.Transition, from, to yafsm.State) error {
+		id = expected
+		return nil
+	}
+
+	beGood := yafsm.NewTransition(yafsm.NewStates("bad"), "good", yafsm.WithCallback(cb1))
+	beGood.TransitionFrom("bad", yafsm.WithCallback(cb2))
+	assert.Equal(t, id, expected)
+}

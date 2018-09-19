@@ -8,7 +8,19 @@ import (
 type State string
 type States []State
 type Callback func(t Transition, from State, to State) error
-type TransitionOption func(Transition)
+type TransitionConfig func(*config)
+
+type config struct {
+	callback Callback
+}
+
+func getConfig(options ...TransitionConfig) *config {
+	c := &config{}
+	for _, opt := range options {
+		opt(c)
+	}
+	return c
+}
 
 func (s State) String() string {
 	return strings.Title(string(s))
@@ -34,9 +46,8 @@ func (states States) Has(s State) bool {
 type Transition interface {
 	From() States
 	To() State
-	TransitionFrom(State, ...TransitionOption) error
+	TransitionFrom(State, ...TransitionConfig) error
 	GetCallback() Callback
-	SetCallback(cb Callback)
 }
 
 type transition struct {
@@ -46,48 +57,54 @@ type transition struct {
 	callback Callback
 }
 
-func (t *transition) From() States {
+func (t transition) From() States {
 	return t.from
 }
 
-func (t *transition) To() State {
+func (t transition) To() State {
 	return t.to
 }
 
-func (t *transition) GetCallback() Callback {
+func (t transition) GetCallback() Callback {
 	return t.callback
 }
 
-func (t *transition) SetCallback(cb Callback) {
-	t.callback = cb
-}
-
-func (t *transition) TransitionFrom(from State, options ...TransitionOption) error {
+func (t transition) TransitionFrom(from State, options ...TransitionConfig) error {
 	return doTransition([]Transition{t}, from, t.To(), options...)
 }
 
-func WithCallback(cb Callback) TransitionOption {
-	return func(t Transition) {
-		t.SetCallback(cb)
+func WithCallback(cb Callback) TransitionConfig {
+	return func(c *config) {
+		c.callback = cb
 	}
 }
 
-func NewTransition(from States, to State, options ...TransitionOption) Transition {
-	t := &transition{from, to, nil}
-	for _, opt := range options {
-		opt(t)
-	}
-	return t
+func NewTransition(from States, to State, options ...TransitionConfig) Transition {
+	c := getConfig(options...)
+	return &transition{from, to, c.callback}
 }
 
-func CreateTransitionHandler(trans []Transition) func(State, State, ...TransitionOption) error {
-	return func(from, to State, options ...TransitionOption) error {
+func CreateTransitionHandler(trans []Transition) func(State, State, ...TransitionConfig) error {
+	return func(from, to State, options ...TransitionConfig) error {
 		return doTransition(trans, from, to, options...)
 	}
 }
 
-func doTransition(trans []Transition, from, to State, options ...TransitionOption) error {
+func getCallback(t Transition, c *config) Callback {
+	cb := c.callback
+	if cb == nil {
+		cb = t.GetCallback()
+	}
+	if cb == nil {
+		// noop
+		cb = func(t Transition, from, to State) error { return nil }
+	}
+	return cb
+}
+
+func doTransition(trans []Transition, from, to State, options ...TransitionConfig) error {
 	var tran Transition
+	c := getConfig(options...)
 
 Loop:
 	for _, t := range trans {
@@ -99,7 +116,7 @@ Loop:
 
 		for _, f := range t.From() {
 			if f == from {
-				tran = NewTransition(t.From(), t.To(), WithCallback(t.GetCallback()))
+				tran = t
 				break Loop
 			}
 		}
@@ -109,15 +126,6 @@ Loop:
 		return fmt.Errorf("\"%s\" -> \"%s\" is not a valid transition", from, to)
 	}
 
-	for _, opt := range options {
-		opt(tran)
-	}
-
-	if cb := tran.GetCallback(); cb != nil {
-		if err := cb(tran, from, to); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	cb := getCallback(tran, c)
+	return cb(tran, from, to)
 }
