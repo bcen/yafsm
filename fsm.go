@@ -1,3 +1,4 @@
+// Package yafsm is a simple library for building finite state machine.
 package yafsm
 
 import (
@@ -26,6 +27,7 @@ func (s State) String() string {
 	return strings.Title(string(s))
 }
 
+// NewStates creates a list of State from input.
 func NewStates(states ...State) States {
 	ret := make(States, len(states))
 	for i, s := range states {
@@ -34,6 +36,7 @@ func NewStates(states ...State) States {
 	return ret
 }
 
+// Has checks existence of a given State.
 func (states States) Has(s State) bool {
 	for _, state := range states {
 		if state == s {
@@ -73,17 +76,20 @@ func (t transition) TransitionFrom(from State, options ...TransitionConfig) erro
 	return doTransition([]Transition{t}, from, t.To(), options...)
 }
 
+// WithCallback sets a callback for a given transition.
 func WithCallback(cb Callback) TransitionConfig {
 	return func(c *config) {
 		c.callback = cb
 	}
 }
 
+// NewTransition creates a new transition.
 func NewTransition(from States, to State, options ...TransitionConfig) Transition {
 	c := getConfig(options...)
 	return &transition{from, to, c.callback}
 }
 
+// CreateTransitionHandler binds and returns an action handler for the given transitions.
 func CreateTransitionHandler(trans []Transition) func(State, State, ...TransitionConfig) error {
 	return func(from, to State, options ...TransitionConfig) error {
 		return doTransition(trans, from, to, options...)
