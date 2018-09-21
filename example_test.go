@@ -35,28 +35,29 @@ func ExampleCreateDOTString() {
 		done       yafsm.State = "done"
 	)
 	transitions := []yafsm.Transition{
-		yafsm.NewTransition(yafsm.NewStates(Todo, InProgress, Verify), Todo),
-		yafsm.NewTransition(yafsm.NewStates(Todo, InProgress, Verify), InProgress),
-		yafsm.NewTransition(yafsm.NewStates(InProgress, Verify), Verify),
-		yafsm.NewTransition(yafsm.NewStates(Verify), Done),
+		yafsm.NewTransition(yafsm.NewStates(todo, inprogress, verify), todo),
+		yafsm.NewTransition(yafsm.NewStates(todo, inprogress, verify), inprogress),
+		yafsm.NewTransition(yafsm.NewStates(inprogress, verify), verify),
+		yafsm.NewTransition(yafsm.NewStates(verify), done),
 	}
 
 	dot := yafsm.CreateDOTString(transitions)
 	fmt.Println(dot)
 	// Output: digraph  {
 	//        todo->todo;
-	//        "in progress"->todo;
+	//        inprogress->todo;
 	//        verify->todo;
-	//        todo->"in progress";
-	//        "in progress"->"in progress";
-	//        verify->"in progress";
-	//        "in progress"->verify;
+	//        todo->inprogress;
+	//        inprogress->inprogress;
+	//        verify->inprogress;
+	//        inprogress->verify;
 	//        verify->verify;
 	//        verify->done;
-	//        "in progress";
 	//        done;
+	//        inprogress;
 	//        todo;
 	//        verify;
 
 	//}
+
 }
