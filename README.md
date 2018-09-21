@@ -1,6 +1,6 @@
 # Yet Another Finite State Machine
 
-## A toy, DO NOT USE IN PRODUCTION.
+### A toy, DO NOT USE IN PRODUCTION.
 
 
 ### Examples:
