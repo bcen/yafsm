@@ -5,6 +5,8 @@
 
 ### Examples:
 
+- Creating a transition handler
+
 ```go
 const (
     green  yafsm.State = "green"
@@ -25,5 +27,46 @@ if err != nil {
 err := handler(green, red)
 if err == nil {
     fmt.Println("Yay~")
+}
+```
+
+- Creating a DOT string from list of transitions
+
+```go
+const (
+    todo       yafsm.State = "todo"
+    inprogress yafsm.State = "inprogress"
+    verify     yafsm.State = "verify"
+    done       yafsm.State = "done"
+)
+transitions := []yafsm.Transition{
+    yafsm.NewTransition(yafsm.NewStates(todo, inprogress, verify), todo),
+    yafsm.NewTransition(yafsm.NewStates(todo, inprogress, verify), inprogress),
+    yafsm.NewTransition(yafsm.NewStates(inprogress, verify), verify),
+    yafsm.NewTransition(yafsm.NewStates(verify), done),
+}
+
+dot := yafsm.CreateDOTString(transitions)
+fmt.Println(dot)
+```
+
+Output:
+
+```dot
+digraph  {
+        todo->todo;
+        inprogress->todo;
+        verify->todo;
+        todo->inprogress;
+        inprogress->inprogress;
+        verify->inprogress;
+        inprogress->verify;
+        verify->verify;
+        verify->done;
+        done;
+        inprogress;
+        todo;
+        verify;
+
 }
 ```
