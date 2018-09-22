@@ -24,7 +24,7 @@ if err != nil {
     fmt.Println(err)
 }
 
-err := handler(green, red)
+err := handler(green, yellow)
 if err == nil {
     fmt.Println("Yay~")
 }
