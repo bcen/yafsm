@@ -23,11 +23,12 @@ func ExampleCreateTransitionHandler() {
 
 	err = handler(green, yellow)
 	fmt.Println(err)
-	// Output: "Green" -> "Red" is not a valid transition
+	// Output:
+	// "Green" -> "Red" is not a valid transition
 	// <nil>
 }
 
-func ExampleCreateDOTString() {
+func ExampleCreateDOT() {
 	const (
 		todo       yafsm.State = "todo"
 		inprogress yafsm.State = "inprogress"
@@ -41,9 +42,10 @@ func ExampleCreateDOTString() {
 		yafsm.NewTransition(yafsm.NewStates(verify), done),
 	}
 
-	dot := yafsm.CreateDOTString(transitions)
+	dot := yafsm.CreateDOT(transitions)
 	fmt.Println(dot)
-	// Output: digraph  {
+	// Output:
+	// digraph  {
 	//        todo->todo;
 	//        inprogress->todo;
 	//        verify->todo;
@@ -58,6 +60,5 @@ func ExampleCreateDOTString() {
 	//        todo;
 	//        verify;
 
-	//}
-
+	// }
 }

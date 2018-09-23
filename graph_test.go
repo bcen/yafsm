@@ -1,12 +1,21 @@
 package yafsm_test
 
 import (
+	"io/ioutil"
 	"strings"
 	"testing"
 
 	"github.com/bcen/yafsm"
 	"github.com/stretchr/testify/assert"
 )
+
+func getDOT(path string) string {
+	content, err := ioutil.ReadFile("testdata/" + path)
+	if err != nil {
+		panic(err)
+	}
+	return string(content)
+}
 
 func TestCreateTransitionsFromDOTError(t *testing.T) {
 	dot := "digraph G {"
@@ -15,53 +24,25 @@ func TestCreateTransitionsFromDOTError(t *testing.T) {
 }
 
 func TestCreateTransitionsFromDOT(t *testing.T) {
-	dot := `
-	digraph G {
-		todo -> todo;
-		inprogress -> todo;
-		verify -> todo;
-		todo -> inprogress;
-		inprogress -> inprogress;
-		verify -> inprogress;
-		inprogress -> verify;
-		verify -> verify;
-		verify -> done;
-	}
-	`
+	dot := getDOT("bgp.dot")
 
 	states, trans, err := yafsm.CreateTransitionsFromDOT(dot)
 	assert.Nil(t, err)
-	assert.True(t, states.Has("todo"))
-	assert.True(t, states.Has("inprogress"))
-	assert.True(t, states.Has("verify"))
-	assert.True(t, states.Has("done"))
+	for _, s := range BGPStates {
+		assert.True(t, states.Has(s))
+	}
 
 	handler := yafsm.CreateTransitionHandler(trans)
 
-	err = handler("todo", "inprogress")
+	err = handler(StateConnect, StateOpenSent)
 	assert.Nil(t, err)
 
-	err = handler("todo", "done")
+	err = handler(StateIdle, StateEsablished)
 	assert.NotNil(t, err)
 }
 
-func TestCreateDOTString(t *testing.T) {
-	dot := yafsm.CreateDOTString(KanbanTransitions)
-	expected := `digraph  {
-	todo->todo;
-	"in progress"->todo;
-	verify->todo;
-	todo->"in progress";
-	"in progress"->"in progress";
-	verify->"in progress";
-	"in progress"->verify;
-	verify->verify;
-	verify->done;
-	"in progress";
-	done;
-	todo;
-	verify;
-
-}`
+func TestCreateDOT(t *testing.T) {
+	dot := yafsm.CreateDOT(BGPTransitions)
+	expected := getDOT("bgp.dot")
 	assert.Equal(t, strings.TrimSpace(dot), strings.TrimSpace(expected))
 }

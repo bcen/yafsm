@@ -12,6 +12,7 @@ type Callback func(t Transition, from State, to State) error
 type TransitionConfig func(*config)
 
 type config struct {
+	name     string
 	callback Callback
 }
 
@@ -21,6 +22,18 @@ func getConfig(options ...TransitionConfig) *config {
 		opt(c)
 	}
 	return c
+}
+
+func getCallback(t Transition, c *config) Callback {
+	cb := c.callback
+	if cb == nil {
+		cb = t.GetCallback()
+	}
+	if cb == nil {
+		// noop
+		cb = func(t Transition, from, to State) error { return nil }
+	}
+	return cb
 }
 
 func (s State) String() string {
@@ -47,6 +60,7 @@ func (states States) Has(s State) bool {
 }
 
 type Transition interface {
+	Name() string
 	From() States
 	To() State
 	TransitionFrom(State, ...TransitionConfig) error
@@ -54,10 +68,15 @@ type Transition interface {
 }
 
 type transition struct {
+	name string
 	from States
 	to   State
 
 	callback Callback
+}
+
+func (t transition) Name() string {
+	return t.name
 }
 
 func (t transition) From() States {
@@ -83,29 +102,25 @@ func WithCallback(cb Callback) TransitionConfig {
 	}
 }
 
+// WithName sets an optional name for the transition.
+func WithName(name string) TransitionConfig {
+	return func(c *config) {
+		c.name = name
+	}
+}
+
 // NewTransition creates a new transition.
 func NewTransition(from States, to State, options ...TransitionConfig) Transition {
 	c := getConfig(options...)
-	return &transition{from, to, c.callback}
+	return &transition{c.name, from, to, c.callback}
 }
 
 // CreateTransitionHandler binds and returns an action handler for the given transitions.
 func CreateTransitionHandler(trans []Transition) func(State, State, ...TransitionConfig) error {
+	// TODO: check dupes
 	return func(from, to State, options ...TransitionConfig) error {
 		return doTransition(trans, from, to, options...)
 	}
-}
-
-func getCallback(t Transition, c *config) Callback {
-	cb := c.callback
-	if cb == nil {
-		cb = t.GetCallback()
-	}
-	if cb == nil {
-		// noop
-		cb = func(t Transition, from, to State) error { return nil }
-	}
-	return cb
 }
 
 func doTransition(trans []Transition, from, to State, options ...TransitionConfig) error {
@@ -114,7 +129,6 @@ func doTransition(trans []Transition, from, to State, options ...TransitionConfi
 
 Loop:
 	for _, t := range trans {
-		// we do not check for duplicates
 
 		if t.To() != to {
 			continue
@@ -129,7 +143,7 @@ Loop:
 	}
 
 	if tran == nil {
-		return fmt.Errorf("\"%s\" -> \"%s\" is not a valid transition", from, to)
+		return fmt.Errorf(`"%s" -> "%s" is not a valid transition`, from, to)
 	}
 
 	cb := getCallback(tran, c)

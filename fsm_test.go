@@ -9,23 +9,53 @@ import (
 )
 
 const (
-	Todo       yafsm.State = "todo"
-	InProgress yafsm.State = "in progress"
-	Verify     yafsm.State = "verify"
-	Done       yafsm.State = "done"
+	StateIdle        yafsm.State = "idle"
+	StateConnect     yafsm.State = "connect"
+	StateActive      yafsm.State = "active"
+	StateOpenSent    yafsm.State = "opensent"
+	StateOpenConfirm yafsm.State = "openconfirm"
+	StateEsablished  yafsm.State = "esablished"
 
 	Foo yafsm.State = "foo"
 )
 
 var (
-	AllStates         = yafsm.NewStates(Todo, InProgress, Verify, Done)
-	KanbanTransitions = []yafsm.Transition{
-		yafsm.NewTransition(yafsm.NewStates(Todo, InProgress, Verify), Todo),
-		yafsm.NewTransition(yafsm.NewStates(Todo, InProgress, Verify), InProgress),
-		yafsm.NewTransition(yafsm.NewStates(InProgress, Verify), Verify),
-		yafsm.NewTransition(yafsm.NewStates(Verify), Done),
+	BGPStates = yafsm.NewStates(
+		StateIdle,
+		StateConnect,
+		StateActive,
+		StateOpenSent,
+		StateOpenConfirm,
+		StateEsablished,
+	)
+	BGPTransitions = []yafsm.Transition{
+		yafsm.NewTransition(
+			yafsm.NewStates(StateIdle, StateEsablished, StateOpenSent, StateConnect, StateActive, StateOpenConfirm),
+			StateIdle,
+			yafsm.WithName("Stop Connection"),
+		),
+		yafsm.NewTransition(
+			yafsm.NewStates(StateIdle, StateConnect, StateActive),
+			StateConnect,
+		),
+		yafsm.NewTransition(
+			yafsm.NewStates(StateConnect, StateActive, StateOpenSent),
+			StateActive,
+		),
+		yafsm.NewTransition(
+			yafsm.NewStates(StateConnect, StateActive),
+			StateOpenSent,
+		),
+		yafsm.NewTransition(
+			yafsm.NewStates(StateOpenSent, StateOpenConfirm),
+			StateOpenConfirm,
+		),
+		yafsm.NewTransition(
+			yafsm.NewStates(StateEsablished, StateOpenConfirm),
+			StateEsablished,
+		),
 	}
-	KanbanTransition = yafsm.CreateTransitionHandler(KanbanTransitions)
+	BGPTransitionHandler = yafsm.CreateTransitionHandler(BGPTransitions)
 )
 
 func TestStates(t *testing.T) {
@@ -33,14 +63,16 @@ func TestStates(t *testing.T) {
 		s        yafsm.State
 		expected bool
 	}{
-		{Todo, true},
-		{Done, true},
+		{StateIdle, true},
+		{StateActive, true},
 		{Foo, false},
 	}
 
 	for _, testCase := range testCases {
-		actual := AllStates.Has(testCase.s)
-		assert.Equal(t, actual, testCase.expected)
+		t.Run(string(testCase.s), func(t *testing.T) {
+			actual := BGPStates.Has(testCase.s)
+			assert.Equal(t, actual, testCase.expected)
+		})
 	}
 }
 
@@ -50,20 +82,19 @@ func TestTransition(t *testing.T) {
 		to    yafsm.State
 		valid bool
 	}{
-		{Todo, InProgress, true},
-		{InProgress, Todo, true},
-		{Verify, Done, true},
-		{Verify, Verify, true},
-		{Todo, Done, false},
-		{Done, Verify, false},
-		{Done, Done, false},
-		{Todo, Foo, false},
+		{StateIdle, StateConnect, true},
+		{StateConnect, StateConnect, true},
+		{StateConnect, StateOpenSent, true},
+		{StateIdle, StateEsablished, false},
+		{StateEsablished, StateConnect, false},
+		{StateOpenSent, StateOpenSent, false},
+		{StateIdle, Foo, false},
 	}
 
 	for _, testCase := range testCases {
 		subtest := fmt.Sprintf("(%s,%s)", testCase.from, testCase.to)
 		t.Run(subtest, func(t *testing.T) {
-			err := KanbanTransition(testCase.from, testCase.to)
+			err := BGPTransitionHandler(testCase.from, testCase.to)
 			if testCase.valid {
 				assert.Nil(t, err)
 			} else {

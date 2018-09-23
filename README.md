@@ -46,7 +46,7 @@ transitions := []yafsm.Transition{
     yafsm.NewTransition(yafsm.NewStates(verify), done),
 }
 
-dot := yafsm.CreateDOTString(transitions)
+dot := yafsm.CreateDOT(transitions)
 fmt.Println(dot)
 ```
 

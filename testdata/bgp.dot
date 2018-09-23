@@ -1,0 +1,28 @@
+digraph  {
+	rankdir=LR;
+	idle->idle[ label="Stop Connection" ];
+	esablished->idle[ label="Stop Connection" ];
+	opensent->idle[ label="Stop Connection" ];
+	connect->idle[ label="Stop Connection" ];
+	active->idle[ label="Stop Connection" ];
+	openconfirm->idle[ label="Stop Connection" ];
+	idle->connect;
+	connect->connect;
+	active->connect;
+	connect->active;
+	active->active;
+	opensent->active;
+	connect->opensent;
+	active->opensent;
+	opensent->openconfirm;
+	openconfirm->openconfirm;
+	esablished->esablished;
+	openconfirm->esablished;
+	active;
+	connect;
+	esablished;
+	idle;
+	openconfirm;
+	opensent;
+
+}
