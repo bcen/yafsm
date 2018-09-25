@@ -1,0 +1,28 @@
+digraph  {
+	rankdir=LR;
+	idle->idle[ label=Reset ];
+	esablished->idle[ label=Reset ];
+	opensent->idle[ label=Reset ];
+	connect->idle[ label=Reset ];
+	active->idle[ label=Reset ];
+	openconfirm->idle[ label=Reset ];
+	idle->connect[ label=Connect ];
+	connect->connect[ label=Connect ];
+	active->connect[ label=Connect ];
+	connect->active[ label="Establish Connection" ];
+	active->active[ label="Establish Connection" ];
+	opensent->active[ label="Establish Connection" ];
+	connect->opensent[ label=Send ];
+	active->opensent[ label=Send ];
+	opensent->openconfirm[ label=Confirm ];
+	openconfirm->openconfirm[ label=Confirm ];
+	esablished->esablished[ label=Done ];
+	openconfirm->esablished[ label=Done ];
+	active;
+	connect;
+	esablished;
+	idle;
+	openconfirm;
+	opensent;
+
+}

@@ -3,6 +3,7 @@ package yafsm
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -12,6 +13,7 @@ type Callback func(t Transition, from State, to State) error
 type TransitionConfig func(*config)
 
 type config struct {
+	name     string
 	callback Callback
 }
 
@@ -21,6 +23,37 @@ func getConfig(options ...TransitionConfig) *config {
 		opt(c)
 	}
 	return c
+}
+
+func getCallback(t Transition, c *config) Callback {
+	cb := c.callback
+	if cb == nil {
+		cb = t.GetCallback()
+	}
+	if cb == nil {
+		// noop
+		cb = func(t Transition, from, to State) error { return nil }
+	}
+	return cb
+}
+
+func createEdges(trans []Transition) map[string]Transition {
+	edges := make(map[string]Transition)
+	for _, t := range trans {
+		if len(t.From()) == 0 {
+			panic("Transition must have at least one from states")
+		}
+
+		for _, f := range t.From() {
+			key := fmt.Sprintf("(%s,%s)", string(f), string(t.To()))
+			if _, ok := edges[key]; ok {
+				panic(fmt.Sprintf("%s is a duplicate transition", key))
+			}
+
+			edges[key] = t
+		}
+	}
+	return edges
 }
 
 func (s State) String() string {
@@ -46,7 +79,17 @@ func (states States) Has(s State) bool {
 	return false
 }
 
+func (states States) AsSortedStrings() []string {
+	ret := make([]string, len(states))
+	for i, s := range states {
+		ret[i] = string(s)
+	}
+	sort.Strings(ret)
+	return ret
+}
+
 type Transition interface {
+	Name() string
 	From() States
 	To() State
 	TransitionFrom(State, ...TransitionConfig) error
@@ -54,10 +97,15 @@ type Transition interface {
 }
 
 type transition struct {
+	name string
 	from States
 	to   State
 
 	callback Callback
+}
+
+func (t transition) Name() string {
+	return t.name
 }
 
 func (t transition) From() States {
@@ -73,7 +121,7 @@ func (t transition) GetCallback() Callback {
 }
 
 func (t transition) TransitionFrom(from State, options ...TransitionConfig) error {
-	return doTransition([]Transition{t}, from, t.To(), options...)
+	return doTransition(createEdges([]Transition{t}), from, t.To(), options...)
 }
 
 // WithCallback sets a callback for a given transition.
@@ -83,53 +131,34 @@ func WithCallback(cb Callback) TransitionConfig {
 	}
 }
 
+// WithName sets an optional name for the transition.
+func WithName(name string) TransitionConfig {
+	return func(c *config) {
+		c.name = name
+	}
+}
+
 // NewTransition creates a new transition.
 func NewTransition(from States, to State, options ...TransitionConfig) Transition {
 	c := getConfig(options...)
-	return &transition{from, to, c.callback}
+	return &transition{c.name, from, to, c.callback}
 }
 
 // CreateTransitionHandler binds and returns an action handler for the given transitions.
 func CreateTransitionHandler(trans []Transition) func(State, State, ...TransitionConfig) error {
+	edges := createEdges(trans)
 	return func(from, to State, options ...TransitionConfig) error {
-		return doTransition(trans, from, to, options...)
+		return doTransition(edges, from, to, options...)
 	}
 }
 
-func getCallback(t Transition, c *config) Callback {
-	cb := c.callback
-	if cb == nil {
-		cb = t.GetCallback()
-	}
-	if cb == nil {
-		// noop
-		cb = func(t Transition, from, to State) error { return nil }
-	}
-	return cb
-}
-
-func doTransition(trans []Transition, from, to State, options ...TransitionConfig) error {
-	var tran Transition
+func doTransition(edges map[string]Transition, from, to State, options ...TransitionConfig) error {
 	c := getConfig(options...)
 
-Loop:
-	for _, t := range trans {
-		// we do not check for duplicates
-
-		if t.To() != to {
-			continue
-		}
-
-		for _, f := range t.From() {
-			if f == from {
-				tran = t
-				break Loop
-			}
-		}
-	}
-
+	key := fmt.Sprintf("(%s,%s)", string(from), string(to))
+	tran := edges[key]
 	if tran == nil {
-		return fmt.Errorf("\"%s\" -> \"%s\" is not a valid transition", from, to)
+		return fmt.Errorf(`"%s" -> "%s" is not a valid transition`, from, to)
 	}
 
 	cb := getCallback(tran, c)
