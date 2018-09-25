@@ -32,27 +32,32 @@ var (
 		yafsm.NewTransition(
 			yafsm.NewStates(StateIdle, StateEsablished, StateOpenSent, StateConnect, StateActive, StateOpenConfirm),
 			StateIdle,
-			yafsm.WithName("Stop Connection"),
+			yafsm.WithName("Reset"),
 		),
 		yafsm.NewTransition(
 			yafsm.NewStates(StateIdle, StateConnect, StateActive),
 			StateConnect,
+			yafsm.WithName("Connect"),
 		),
 		yafsm.NewTransition(
 			yafsm.NewStates(StateConnect, StateActive, StateOpenSent),
 			StateActive,
+			yafsm.WithName("Establish Connection"),
 		),
 		yafsm.NewTransition(
 			yafsm.NewStates(StateConnect, StateActive),
 			StateOpenSent,
+			yafsm.WithName("Send"),
 		),
 		yafsm.NewTransition(
 			yafsm.NewStates(StateOpenSent, StateOpenConfirm),
 			StateOpenConfirm,
+			yafsm.WithName("Confirm"),
 		),
 		yafsm.NewTransition(
 			yafsm.NewStates(StateEsablished, StateOpenConfirm),
 			StateEsablished,
+			yafsm.WithName("Done"),
 		),
 	}
 	BGPTransitionHandler = yafsm.CreateTransitionHandler(BGPTransitions)
@@ -102,6 +107,27 @@ func TestTransition(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateTransitionHandlerPanicFromDupe(t *testing.T) {
+	defer func() {
+		r := recover()
+		assert.NotNil(t, r)
+	}()
+	yafsm.CreateTransitionHandler([]yafsm.Transition{
+		yafsm.NewTransition(yafsm.NewStates("1", "2"), "3"),
+		yafsm.NewTransition(yafsm.NewStates("2"), "3"),
+	})
+}
+
+func TestCreateTransitionHandlerPanicFromEmptyFromStates(t *testing.T) {
+	defer func() {
+		r := recover()
+		assert.NotNil(t, r)
+	}()
+	yafsm.CreateTransitionHandler([]yafsm.Transition{
+		yafsm.NewTransition(yafsm.NewStates(), "2"),
+	})
 }
 
 func TestSingleTransition(t *testing.T) {
