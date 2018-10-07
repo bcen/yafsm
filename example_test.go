@@ -12,9 +12,15 @@ func ExampleCreateTransitionHandler() {
 		yellow yafsm.State = "yellow"
 		red    yafsm.State = "red"
 	)
+
+	cb := func(t yafsm.Transition, from, to yafsm.State) error {
+		fmt.Printf("From callback: %s -> %s\n", from, to)
+		return nil
+	}
+
 	handler := yafsm.CreateTransitionHandler([]yafsm.Transition{
 		yafsm.NewTransition(yafsm.NewStates(red), green),
-		yafsm.NewTransition(yafsm.NewStates(green), yellow),
+		yafsm.NewTransition(yafsm.NewStates(green), yellow, yafsm.WithCallback(cb)),
 		yafsm.NewTransition(yafsm.NewStates(yellow), red),
 	})
 
@@ -25,6 +31,7 @@ func ExampleCreateTransitionHandler() {
 	fmt.Println(err)
 	// Output:
 	// "Green" -> "Red" is not a valid transition
+	// From callback: Green -> Yellow
 	// <nil>
 }
 
@@ -67,20 +74,34 @@ func ExampleCreateDOT() {
 func ExampleCreateTransitionsFromDOT() {
 	dot := `
 	digraph {
-	    green -> yellow;
+	    green -> yellow [label = "an optional label"];
 	    yellow -> red;
 	    red -> green;
 	}
 	`
-	states, _, _ := yafsm.CreateTransitionsFromDOT(dot)
+	states, trans, _ := yafsm.CreateTransitionsFromDOT(dot)
+	handler := yafsm.CreateTransitionHandler(trans)
 
 	fmt.Println("States:")
 	for _, s := range states.AsSortedStrings() {
 		fmt.Println(s)
+	}
+
+	fmt.Println("Transitions:")
+
+	if err := handler("green", "red"); err != nil {
+		fmt.Println(err)
+	}
+
+	if err := handler("green", "yellow"); err == nil {
+		fmt.Println(`"Green" -> "Yellow": OK`)
 	}
 	// Output:
 	// States:
 	// green
 	// red
 	// yellow
+	// Transitions:
+	// "Green" -> "Red" is not a valid transition
+	// "Green" -> "Yellow": OK
 }
